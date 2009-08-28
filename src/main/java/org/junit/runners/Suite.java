@@ -5,8 +5,11 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Comparator;
 import java.util.List;
+import java.util.TreeSet;
 
+import org.junit.Ignore;
 import org.junit.internal.builders.AllDefaultPossibilitiesBuilder;
 import org.junit.runner.Description;
 import org.junit.runner.Runner;
@@ -126,5 +129,37 @@ public class Suite extends ParentRunner<Runner> {
 	@Override
 	protected void runChild(Runner runner, final RunNotifier notifier) {
 		runner.run(notifier);
+	}
+
+	/**
+	 * Using <code>SortedSuite</code> as a runner allows you to automatically build
+	 * a test suite containing all inner classes of this class, except any marked with
+	 * {@link org.junit.Ignore}.  Test class are sorted by name and run in that order.
+	 */
+	public static class SortedSuite extends Suite {
+		/**
+		 * Called reflectively on classes annotated with <code>@RunWith(SortedSuite.class)</code>
+		 * 
+		 * @param klass the root class
+		 * @param builder builds runners for classes in the suite
+		 * @throws InitializationError
+		 */
+		public SortedSuite(Class<?> klass, RunnerBuilder builder) throws InitializationError {
+			super(builder, klass, getSortedClasses(klass));
+		}
+
+		private static Class<?>[] getSortedClasses(Class<?> klass) throws InitializationError {
+			TreeSet<Class<?>> list = new TreeSet<Class<?>>(new Comparator<Class<?>>() {
+				public int compare(Class<?> o1, Class<?> o2) {
+					return o1.getSimpleName().compareTo(o2.getSimpleName());
+				}
+			});
+			for (Class<?> innerclass : klass.getClasses()) {
+				if (innerclass.getAnnotation(Ignore.class) == null) {
+					list.add(innerclass);
+				}
+			}
+			return list.toArray(new Class<?>[0]);
+		}
 	}
 }
